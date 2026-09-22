@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>タント空力改良レポート</title>
+<meta name="description" content="ダイハツ タントの現モデルと新モデルを自作の格子ボルツマン法ソルバーで比較した空力改良レポート。燃費・価格・2030年度燃費基準の試算と、その計算式の導出を含む。">
+<style>
+:root{
+  --bg:#ffffff; --surface:#f7f8fa; --ink:#1c2431; --muted:#5b6472; --rule:#d6dae0;
+  --acc:#b8791f; --acc-soft:#f7f4ee; --link:#3f6fb5; --head-bg:#eef1f5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#14181f; --surface:#1b212b; --ink:#e7eaef; --muted:#9aa3b2;
+    --rule:#333c4a; --acc:#d9a04a; --acc-soft:#241f16; --link:#8ab0e8; --head-bg:#222a35; }
+}
+:root[data-theme="dark"]{ --bg:#14181f; --surface:#1b212b; --ink:#e7eaef; --muted:#9aa3b2;
+  --rule:#333c4a; --acc:#d9a04a; --acc-soft:#241f16; --link:#8ab0e8; --head-bg:#222a35; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Yu Gothic","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  font-size:16px;line-height:1.85;-webkit-text-size-adjust:100%}
+.wrap{max-width:860px;margin:0 auto;padding:40px 16px 80px}
+.cover{border-bottom:3px solid var(--acc);padding-bottom:20px;margin-bottom:8px}
+.eyebrow{color:var(--acc);font-weight:700;font-size:14px;letter-spacing:.08em;margin:0 0 6px}
+.title{font-size:34px;line-height:1.3;margin:0 0 6px;font-weight:800}
+.subtitle{font-size:19px;color:var(--muted);margin:0 0 18px}
+.meta p{margin:2px 0;font-size:14px;color:var(--ink)}
+.meta .k{color:var(--muted)}
+.actions{margin:22px 0 0}
+.btn{display:inline-block;background:var(--acc);color:#fff;text-decoration:none;padding:11px 20px;font-weight:700;font-size:15px}
+.btn:hover{filter:brightness(1.08)}
+nav.toc{background:var(--surface);border-left:4px solid var(--acc);padding:14px 18px;margin:26px 0 34px}
+nav.toc p{margin:0 0 6px;font-weight:700;font-size:14px;color:var(--muted)}
+nav.toc ul{margin:0;padding-left:0;font-size:14px;list-style:none}
+nav.toc li{margin:0 0 3px}
+nav.toc a{color:var(--link)}
+h2{font-size:24px;margin:44px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--acc);font-weight:800;scroll-margin-top:16px}
+h3{font-size:18px;margin:28px 0 8px;font-weight:700}
+p{margin:0 0 12px}
+ul{margin:0 0 14px;padding-left:1.35em}
+li{margin:0 0 5px}
+a{color:var(--link)}
+.note{font-size:14px;color:var(--muted);margin-bottom:16px}
+.caption{font-size:14px;color:var(--muted);text-align:center}
+.formula{background:var(--acc-soft);border-left:4px solid var(--acc);padding:12px 16px;margin:16px 0;
+  text-align:center;font-weight:700;font-size:17px;overflow-x:auto}
+.tw{overflow-x:auto;margin:0 0 18px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+th,td{border:1px solid var(--rule);padding:7px 10px;text-align:center;vertical-align:top;font-weight:400}
+thead th{background:var(--head-bg);font-weight:700}
+tbody th{text-align:left;font-weight:400}
+tbody th.b,td.b{font-weight:700}
+.acc{color:var(--acc);font-weight:700}
+figure{margin:20px 0 22px}
+figure img{width:100%;height:auto;display:block;background:#fff}
+figcaption{font-size:14px;color:var(--muted);text-align:center;margin-top:6px}
+footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);font-size:14px;color:var(--muted)}
+@media (max-width:640px){ .title{font-size:26px} h2{font-size:20px} body{font-size:15px} }
+@media print{ .btn,nav.toc{display:none} body{font-size:10.5pt} .wrap{padding:0} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="cover">
+  <p class="eyebrow">CFD 解析レポート</p>
+  <h1 class="title">軽トールワゴンの空力改良</h1>
+  <p class="subtitle">現モデルと新モデルの比較・改善提案</p>
+  <div class="meta"><p><span class="k">作成日：</span>2026年9月23日　<span class="k">対象：</span>ダイハツ タント（2代目相当の形状）</p>
+  <p><span class="k">解析：</span>自作の格子ボルツマン法ソルバー（ノートPCのGPUで計算）</p>
+  <p><span class="k">公開ページ：</span>現モデル <a href="https://uu6206935.github.io/tanto-cfd/" rel="noreferrer">https://uu6206935.github.io/tanto-cfd/</a>　／　新モデル <a href="https://uu6206935.github.io/tanto-cfd-new/" rel="noreferrer">https://uu6206935.github.io/tanto-cfd-new/</a></p></div>
+  <p class="actions"><a class="btn" href="tanto-aero-report.docx" download>Word ファイルをダウンロード（.docx）</a></p>
+</header>
+<nav class="toc">
+  <p>目次</p>
+  <ul>
+    <li><a href="#h1">要旨</a></li>
+    <li><a href="#h2">1. 目的と進め方</a></li>
+    <li><a href="#h3">2. 新モデルの形状</a></li>
+    <li><a href="#h4">3. 解析の条件と方法</a></li>
+    <li><a href="#h5">4. 空力解析の結果</a></li>
+    <li><a href="#h6">5. 燃費の見込み</a></li>
+    <li><a href="#h7">6. 2030年度燃費基準の達成率</a></li>
+    <li><a href="#h8">7. 価格への上乗せ</a></li>
+    <li><a href="#h9">8. 計算の導出（式と記号）</a></li>
+    <li><a href="#h10">9. 天井の丸み（R30 cm）の現実性と量産化の課題</a></li>
+    <li><a href="#h11">10. 良い点・限界・改善案</a></li>
+    <li><a href="#h12">出典</a></li>
+  </ul>
+</nav>
+<h2 id="h1">要旨</h2>
+<p>現モデル（ダイハツ タント 2代目相当の形状）に対し、フロントガラスを寝かせ、天井の左右の角を丸め、屋根の後端に小さなリアスポイラーを加えた新モデルを作り、同じ条件で空力解析を行った。結果は次のとおりである。</p>
+<div class="tw"><table>
+<thead><tr><th>項目</th><th>現モデル</th><th>新モデル</th><th>変化</th></tr></thead>
+<tbody>
+<tr><th>抗力係数 Cd（正面からの風）</th><td>0.521</td><td class="b">0.455</td><td class="b acc">−12.7%</td></tr>
+<tr><th>抗力係数 Cd（斜め30°）</th><td>1.022</td><td>1.029</td><td>+0.7%</td></tr>
+<tr><th>抗力係数 Cd（斜め60°）</th><td>2.132</td><td>2.030</td><td>−4.8%</td></tr>
+<tr><th>抗力係数 Cd（真横90°）</th><td>2.793</td><td>2.541</td><td>−9.0%</td></tr>
+<tr><th>WLTCモード燃費（試算）</th><td>22.6 km/L</td><td class="b">約 23.3 km/L</td><td class="b acc">+約3%</td></tr>
+<tr><th>2030年度燃費基準 達成率</th><td>81%</td><td class="b">約 84%</td><td>+約3ポイント</td></tr>
+<tr><th>車両価格への上乗せ（試算）</th><td>—</td><td>約 1万円</td><td>+0.7%程度</td></tr>
+</tbody></table></div>
+<p class="note">Cd は 4.5 cm 間隔の粗い格子による簡易 CFD の値であり、絶対値は実車より大きく出る。ここでは同一条件で計算した現モデルとの差のみを用いている。達成率は車両重量 910 kg（タント X 2WD 相当）での計算値。</p>
+<p>要点は 3 つである。第一に、正面からの風に対する空気抵抗は 1 割強減った。第二に、その効果を燃費に換算すると +3% 程度（22.6 → 約 23.3 km/L）であり、高速走行が多いほど効く。第三に、2030年度燃費基準の達成率は 81% から約 84% に上がるが、2027年5月から適用されるエコカー減税の 85% の線にはわずかに届かない見込みである。</p>
+<h2 id="h2">1. 目的と進め方</h2>
+<p>空力（空気の流れ）の改良が、実際にどれだけ空気抵抗を減らし、燃費や税制上の区分にどう効くかを、自分の手元の計算で確かめることを目的とした。市販の解析ソフトは使わず、解析プログラムから可視化ページまでを自作した。</p>
+<h3>1.1 使ったもの</h3>
+<ul>
+<li>計算機：ノートPC 1台（CPU Core i7-9750H、メモリ 16 GB、GPU NVIDIA GeForce MX250 2 GB）</li>
+<li>言語・ライブラリ：Python 3.11、NumPy／SciPy（数値計算）、trimesh（3D形状）、scikit-image（表面生成）、Taichi 1.7.4（GPU計算）、three.js r170（Web表示）</li>
+<li>ソルバー：自作（lbm_taichi.py、343行）。プログラム全体は約1,900行</li>
+<li>AI：Claude Code に指示し、コード作成から計算・公開まで実施</li>
+</ul>
+<p class="note">市販 CFD ソフトや OpenFOAM は使用していない。費用は 0 円（電気代を除く）。</p>
+<h3>1.2 解析用の形状の作り方</h3>
+<p>入手した3Dモデルは見た目用で、すき間や穴があり、そのままでは解析に使えない。次の手順で解析用の形に作り直した。</p>
+<ul>
+<li>単位と向きをそろえ、実寸（全長 3.395 m、全高 1.746 m、ホイールベース 2.47 m）に合わせた</li>
+<li>車を 4.5 cm 角のブロックの集まりに置き換え、表面を 1 層太らせて穴をふさぎ、外から届かない内側を詰めてから 1 層削って元の太さに戻した</li>
+<li>タイヤは中まで詰まった円柱とし、接地部には高さ 8 cm の台を置いた（細いすき間は計算が壊れる原因になるため）</li>
+<li>表示用には 1.5 cm 角の細かいブロックから表面を張り、なめらかにして三角形 56,000 枚に減らした</li>
+</ul>
+<h2 id="h3">2. 新モデルの形状</h2>
+<p>新モデルは、現モデルに次の 3 点を加えた形である。いずれも空気の流れのはがれ（はく離）を抑えることを狙っている。</p>
+<div class="tw"><table>
+<thead><tr><th>変更点</th><th>現モデル</th><th>新モデル</th><th>狙い</th></tr></thead>
+<tbody>
+<tr><th>フロントガラスの傾き</th><td>水平から54°</td><td class="b">水平から41°</td><td>屋根前端でのはく離を抑える</td></tr>
+<tr><th>天井の左右の角</th><td>ほぼ角</td><td class="b">半径30 cmで丸め</td><td>側面への回り込みを滑らかにする</td></tr>
+<tr><th>屋根後端</th><td>なし</td><td class="b">三角スポイラー</td><td>後流の巻き込みを整える</td></tr>
+</tbody></table></div>
+<p class="note">スポイラーは屋根の後端から後ろへ 17 cm 伸び、後端で 5 cm 下がる小さな三角形である（上向きではない）。体積は 6.34 → 6.21 m³、真正面から見た投影面積は 2.31 → 2.30 m² とほぼ変わらない。</p>
+<figure><img src="shape_compare.png" alt="図1　現モデル（上）と新モデル（下）の側面・正面" loading="lazy"><figcaption>図1　現モデル（上）と新モデル（下）の側面・正面</figcaption></figure>
+<figure><img src="spoiler_section.png" alt="図2　屋根後端の断面（車の中心付近、右が後ろ）。新モデルは屋根の線より下に、後ろへ下がる三角形が付く" loading="lazy"><figcaption>図2　屋根後端の断面（車の中心付近、右が後ろ）。新モデルは屋根の線より下に、後ろへ下がる三角形が付く</figcaption></figure>
+<h2 id="h4">3. 解析の条件と方法</h2>
+<h3>3.1 手法</h3>
+<p><strong>格子ボルツマン法（LBM、D3Q19）</strong>を用いた。簡単に言えば、空気を細かい粒の集まりとみなし、ます目の上で 19 方向に動かしてはぶつけ合う操作を何万回もくり返す方法である。乱れた流れは <strong>LES（Smagorinsky モデル、定数 0.12）</strong> で扱う。これは、ます目より小さい渦を 1 つずつ計算せず、その分を空気の粘り気に上乗せする考え方である。</p>
+<h3>3.2 条件</h3>
+<div class="tw"><table>
+<thead><tr><th>項目</th><th>設定</th><th>項目</th><th>設定</th></tr></thead>
+<tbody>
+<tr><th>風速</th><td>100 km/h（27.8 m/s）</td><td>格子</td><td>331×178×122（719万セル）</td></tr>
+<tr><th>風の向き</th><td>0°・30°・60°・90°</td><td>格子間隔</td><td>4.5 cm</td></tr>
+<tr><th>床</th><td>車の後ろへ流れる（走行路面）</td><td>計算領域</td><td>14.9 × 8.0 × 5.5 m</td></tr>
+<tr><th>タイヤ</th><td>固定（回転なし）</td><td>計算時間</td><td>1ケース 約21分（GPU）</td></tr>
+<tr><th>計算した時間</th><td>3.11 秒ぶん（24,000ステップ）</td><td>平均の区間</td><td>1.40 秒以降</td></tr>
+</tbody></table></div>
+<p>風の向きは、車から見た相対風の角度である。30°なら「時速 86.6 km で走行中に横から 50 km/h の風を受けた状態」、90°なら「停車中に真横から 100 km/h の風を受けた状態」にあたる。</p>
+<h3>3.3 力の求め方と検算</h3>
+<p>抗力は車体表面の圧力を積分して求めた（圧力抗力）。運動量交換法でも力を出して突き合わせたところ、こちらは壁の近くの格子が粗く摩擦が過大に出た（Cd 0.94 相当）ため、表示には使っていない。計算の途中では、接地部の基準圧力のかたよりと記録タイミングの偏りという 2 つの不具合を見つけて修正した。</p>
+<h2 id="h5">4. 空力解析の結果</h2>
+<figure><img src="cd_compare.png" alt="図3　風の向きごとの抗力係数（現モデル・新モデルを同じ基準面積 2.31 m² で比較）" loading="lazy"><figcaption>図3　風の向きごとの抗力係数（現モデル・新モデルを同じ基準面積 2.31 m² で比較）</figcaption></figure>
+<p>正面からの風では抗力係数が 12.7% 下がった。真横（90°）でも 9.0% 下がっており、天井の角を丸めた効果と考えられる。一方、斜め 30° ではほとんど変わらなかった。斜めからの風では車の側面が受ける力が支配的になるためである。</p>
+<div class="tw"><table>
+<thead><tr><th>風の向き</th><th>現モデル Cd</th><th>新モデル Cd</th><th>変化</th></tr></thead>
+<tbody>
+<tr><th>0°（正面）</th><td>0.521 ± 0.045</td><td>0.455 ± 0.039</td><td class="b acc">−12.7%</td></tr>
+<tr><th>30°</th><td>1.022 ± 0.029</td><td>1.029 ± 0.029</td><td>+0.7%</td></tr>
+<tr><th>60°</th><td>2.132 ± 0.042</td><td>2.030 ± 0.044</td><td>−4.8%</td></tr>
+<tr><th>90°（真横）</th><td>2.793 ± 0.053</td><td>2.541 ± 0.043</td><td>−9.0%</td></tr>
+</tbody></table></div>
+<p class="note">± は平均を取った区間での時間的なばらつき（標準偏差）。平均化時間が 1.7 秒と短いため、低減率そのものの不確かさは ±5 ポイント程度ある（0°の場合、−12.8% ± 4.9 ポイント）。</p>
+<h3>4.1 100 km/h での空気抵抗</h3>
+<div class="tw"><table>
+<thead><tr><th></th><th>現モデル</th><th>新モデル</th><th>差</th></tr></thead>
+<tbody>
+<tr><th>解析値（絶対値は過大）</th><td>557 N ／ 15.5 kW</td><td>486 N ／ 13.5 kW</td><td>−71 N</td></tr>
+<tr><th>実車想定に換算</th><td>約 338 N ／ 9.4 kW</td><td>約 299 N ／ 8.3 kW</td><td>−39 N</td></tr>
+</tbody></table></div>
+<p class="note">解析値は粗い格子・圧力のみの積分による値で、実車より 5 割ほど大きく出る。実車想定は CdA 0.73 m²（Cd 0.34 × 前面投影面積 2.15 m²）を出発点とし、摩擦抵抗（形を変えても変わらない分）を考慮して低減率を 11.4% として換算した値である。</p>
+<h2 id="h6">5. 燃費の見込み</h2>
+<p>燃費は「走行に必要な仕事のうち、空気抵抗が占める割合」に低減率を掛けて求めた。WLTCモード（市街地・郊外・高速の 3 区間）の速度パターンを使って計算すると、この車格では空気抵抗が正味の駆動仕事の 33% を占める。</p>
+<div class="tw"><table>
+<thead><tr><th>区間</th><th>空気抵抗</th><th>転がり抵抗</th><th>加速</th></tr></thead>
+<tbody>
+<tr><th>市街地（L）</th><td>8.6%</td><td>18.7%</td><td>72.7%</td></tr>
+<tr><th>郊外（M）</th><td>22.7%</td><td>20.4%</td><td>56.9%</td></tr>
+<tr><th>高速（H）</th><td class="b">48.3%</td><td>21.2%</td><td>30.5%</td></tr>
+<tr><th>WLTC 合計</th><td class="b">33.3%</td><td>20.5%</td><td>46.2%</td></tr>
+<tr><th>（参考）100 km/h 定常</th><td>78.8%</td><td>21.2%</td><td>0%</td></tr>
+</tbody></table></div>
+<p>空気抵抗の仕事が 12.7% 減ると、走行に必要な仕事は 4.2% 減る。アイドリングや補機の燃料は走行の仕事に連動しないため、燃料の減り方は仕事の減り方より小さく、換算係数 0.74〜0.88 を掛けて 3.1〜3.7% の燃料削減となる。</p>
+<div class="tw"><table>
+<thead><tr><th>項目</th><th>値</th></tr></thead>
+<tbody>
+<tr><th>現モデル（カタログ値）</th><td>22.6 km/L</td></tr>
+<tr><th>新モデル（試算の中心値）</th><td class="b acc">約 23.3 km/L</td></tr>
+<tr><th>試算の幅（前提を振った範囲）</th><td>23.0 〜 23.6 km/L</td></tr>
+<tr><th>改善率</th><td>+2 〜 +4%（中心 +3%）</td></tr>
+<tr><th>市街地だけの場合</th><td>+1% 弱</td></tr>
+<tr><th>高速だけの場合</th><td>+5% 前後</td></tr>
+<tr><th>100 km/h 定常のみ</th><td>+8 〜 +9%</td></tr>
+</tbody></table></div>
+<h3>5.1 試算の前提</h3>
+<div class="tw"><table>
+<thead><tr><th>前提</th><th>値</th><th>根拠・備考</th></tr></thead>
+<tbody>
+<tr><th>試験自動車重量</th><td>1,030 kg</td><td>車両重量910 kg＋100 kg＋積載可能重量の15%</td></tr>
+<tr><th>転がり抵抗係数</th><td>0.009（0.008〜0.011）</td><td>エコタイヤ装着の軽自動車の一般的水準</td></tr>
+<tr><th>実車の CdA</th><td>0.73 m²（0.68〜0.78）</td><td>タントの Cd 公表値はないため推定</td></tr>
+<tr><th>ガソリン低位発熱量</th><td>32.0 MJ/L</td><td>一般値</td></tr>
+<tr><th>仕事→燃料の換算係数</th><td>0.80（0.74〜0.88）</td><td>Willans 線近似で推定</td></tr>
+</tbody></table></div>
+<p class="note">フロントガラスを 13° 寝かせるとガラス面積が約 23% 増え、2〜3 kg 重くなる。この重量増による燃費悪化は 0.1 km/L 未満で、上の試算に対しては誤差の範囲である。</p>
+<h2 id="h7">6. 2030年度燃費基準の達成率</h2>
+<p>2030年度燃費基準（令和12年度燃費基準）は、車両重量ごとの「区分表」ではなく、車両重量 M（kg）に対する連続式で基準値が決まる。</p>
+<p class="formula">基準値 FE_std = −2.47×10⁻⁶ × M² − 8.52×10⁻⁴ × M + 30.65 ［km/L、WLTCモード］</p>
+<p>この式に車両重量を入れると、タント級（880〜910 kg）の基準値は 27.8〜28.0 km/L となる。1 台ごとの「達成の程度」は、その車の WLTC 燃費値を基準値で割った値である。</p>
+<div class="tw"><table>
+<thead><tr><th></th><th>車両重量</th><th>WLTC燃費</th><th>基準値</th><th>達成率</th></tr></thead>
+<tbody>
+<tr><th>現モデル（X 2WD 相当）</th><td>910 kg</td><td>22.6 km/L</td><td>27.8 km/L</td><td class="b">81.3%</td></tr>
+<tr><th>現モデル（L 2WD 相当）</th><td>880 kg</td><td>22.6 km/L</td><td>28.0 km/L</td><td>80.7%</td></tr>
+<tr><th>新モデル（910 kg 想定）</th><td>910 kg</td><td>約 23.3 km/L</td><td>27.8 km/L</td><td class="b acc">約 83.8%</td></tr>
+<tr><th>新モデル（幅を見た場合）</th><td>910 kg</td><td>23.0〜23.6</td><td>27.8 km/L</td><td>82.7〜84.9%</td></tr>
+</tbody></table></div>
+<p class="note">ダイハツ公式の環境仕様書では、22.6 km/L のグレードは「2030年度燃費基準 80%達成」と表示されている（達成率は 5% 刻みの下の区分で表示されるため）。新モデルは計算上 83〜85% となり、表示上は「80%達成」のままとなる見込みである。</p>
+<h3>6.1 税制への効き方</h3>
+<p>燃費の達成率が効くのは、2026年9月時点では自動車重量税のエコカー減税だけである。自動車税・軽自動車税の環境性能割は 2026年3月31日をもって廃止された。また軽自動車税（種別割）のグリーン化特例は電気軽自動車・天然ガス軽自動車のみが対象で、ガソリン軽自動車は燃費が良くても対象外である。</p>
+<div class="tw"><table>
+<thead><tr><th>2030年度基準 達成の程度</th><th>2026/5/1〜2027/4/30</th><th>2027/5/1〜2028/4/30</th><th>重量税（軽・3年）</th></tr></thead>
+<tbody>
+<tr><th>125%以上</th><td>免税（2回）</td><td>免税（2回）</td><td>0円</td></tr>
+<tr><th>105%以上</th><td>免税</td><td>免税</td><td>0円</td></tr>
+<tr><th>100%以上</th><td>▲75%</td><td>▲75%</td><td>1,800円</td></tr>
+<tr><th>95%以上</th><td>▲50%</td><td>▲50%</td><td>3,700円</td></tr>
+<tr><th>85%以上</th><td>▲25%</td><td>▲25%</td><td>5,600円</td></tr>
+<tr><th class="b">80%以上85%未満（本件）</th><td class="b">▲25%（5,600円）</td><td class="b acc">本則税率（7,500円）</td><td>—</td></tr>
+</tbody></table></div>
+<p>現モデル（81%）も新モデル（約84%）も、2027年4月30日までは ▲25%（3年分 5,600円）である。2027年5月1日からは ▲25% の入口が 85% に引き上がるため、どちらも本則税率（7,500円）となる。つまり今回の空力改良だけでは税の区分は変わらない。</p>
+<p><strong>85% に届かせるには 23.63 km/L（現状から +4.6%）が必要で、</strong>今回の改良（+3%）では約 1.5 ポイント足りない。タイヤの転がり抵抗の低減や床下の整流を組み合わせれば届く範囲である。</p>
+<h2 id="h8">7. 価格への上乗せ</h2>
+<p>この改良を量産車に入れた場合、1 台あたりの原価上昇と、それを価格に転嫁した場合の上乗せ額を見積もった。</p>
+<div class="tw"><table>
+<thead><tr><th>項目</th><th>1台あたり</th><th>備考</th></tr></thead>
+<tbody>
+<tr><th>リアスポイラー（部品・塗装、ライン装着）</th><td>1,000〜3,000円</td><td>後付け純正品は約3.7万円だが、ライン装着なら大幅に下がる</td></tr>
+<tr><th>フロントガラス面積 +23%</th><td>1,000〜2,500円</td><td>材料・重量増</td></tr>
+<tr><th>天井の丸み（成形難度）</th><td>0〜500円</td><td>板厚・材料は不変</td></tr>
+<tr><th>シール・モール・内装の調整</th><td>500〜1,500円</td><td></td></tr>
+<tr><th>金型・開発費の償却</th><td>700〜2,500円</td><td>追加投資 5〜15億円 ÷ 生涯 60〜75万台</td></tr>
+<tr><th class="b">原価上昇 合計</th><td class="b">約3,200〜10,000円</td><td></td></tr>
+<tr><th class="b">車両価格への上乗せ</th><td class="b acc">約4,000〜20,000円</td><td>転嫁係数 1.2〜2.0 倍</td></tr>
+</tbody></table></div>
+<p>中心値としては約 1 万円である。タント L 2WD（1,496,000円）に対して約 0.7% にあたり、フルモデルチェンジ時の価格改定（十数万円規模）に埋もれる程度の額である。</p>
+<h3>7.1 購入者から見た回収年数</h3>
+<div class="tw"><table>
+<thead><tr><th>年間走行距離</th><th>現モデルの燃料費</th><th>新モデルの燃料費</th><th>差額／年</th><th>1万円の回収</th></tr></thead>
+<tbody>
+<tr><th>4,800 km（軽の平均）</th><td>36,085円</td><td>35,001円</td><td>1,084円</td><td>約9年</td></tr>
+<tr><th>8,000 km</th><td>60,142円</td><td>58,335円</td><td>1,807円</td><td>約5.5年</td></tr>
+<tr><th>10,000 km</th><td>75,177円</td><td>72,918円</td><td>2,259円</td><td>約4.4年</td></tr>
+</tbody></table></div>
+<p class="note">ガソリン 169.9 円/L（2026年9月時点の全国平均、燃料油価格の補助 51 円/L が入った価格）で計算。補助がない場合（205.9 円/L）は差額が 2 割ほど大きくなり、回収年数は 4,800 km/年で約 7.6 年になる。</p>
+<p>金額としては大きくないが、軽自動車の年間販売台数（タントは 2025年度 124,103台）で見ると、燃料消費の削減は年間およそ 25 万リットル規模になる。</p>
+<h2 id="h9">8. 計算の導出（式と記号）</h2>
+<p>本章では、これまでに示した数値をどの式から導いたかを順に示す。各式の直後に、記号が何を表すかを一覧で付ける。</p>
+<h3>8.1 抗力係数 Cd と空気抵抗の力</h3>
+<p>解析では、車体表面にかかる圧力を全面にわたって足し合わせ（面積分し）、風の向きの成分を取り出して抗力とした。ボクセル（立方体）で表した車体では、表面は小さな正方形の面の集まりなので、積分は足し算になる。</p>
+<p class="formula">F_D = Σ_i p_i · n_x,i · ΔA</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>F_D</th><td>抗力（風の向きに車を押す力）</td><td>—</td></tr>
+<tr><th>p_i</th><td>i 番目の面にかかる圧力（大気圧からの差）</td><td>解析で算出</td></tr>
+<tr><th>n_x,i</th><td>その面の外向き法線の、風の向きの成分（±1 または 0）</td><td>—</td></tr>
+<tr><th>ΔA</th><td>1 面の面積（格子間隔の 2 乗）</td><td>0.045² = 2.025×10⁻³ m²</td></tr>
+</tbody></table></div>
+<p>この力を、風速と面積で無次元にしたものが抗力係数 Cd である。</p>
+<p class="formula">Cd = F_D / ( ½ · ρ · U² · A_ref )</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>ρ</th><td>空気密度</td><td>1.2 kg/m³</td></tr>
+<tr><th>U</th><td>車から見た風の速さ</td><td>27.78 m/s（100 km/h）</td></tr>
+<tr><th>A_ref</th><td>基準面積（正面から見た投影面積）</td><td>2.507 m²（計算上の車体）</td></tr>
+</tbody></table></div>
+<p class="note">現モデルと新モデルで同じ A_ref を使っている。こうしないと、形が変わって投影面積が変わったときに、抵抗そのものが減ったのか、面積が減っただけなのかが分からなくなるためである。</p>
+<p>Cd が分かれば、任意の速度での空気抵抗の力と、それに打ち勝つために必要な動力は次式で求まる。</p>
+<p class="formula">F = ½ · ρ · V² · Cd · A　　／　　P = F · V</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>V</th><td>走行速度（相対風速）</td><td>27.78 m/s（100 km/h）</td></tr>
+<tr><th>A</th><td>力に換算するときの基準面積</td><td>2.31 m²（車の形の投影面積）</td></tr>
+<tr><th>F</th><td>空気抵抗の力</td><td>現 557 N ／ 新 486 N</td></tr>
+<tr><th>P</th><td>空気抵抗に打ち勝つ動力</td><td>現 15.5 kW ／ 新 13.5 kW</td></tr>
+</tbody></table></div>
+<p>計算例（現モデル）：F = 0.5 × 1.2 × 27.78² × 0.521 × 2.31 = 557 N、P = 557 × 27.78 ÷ 1000 = 15.5 kW。</p>
+<h3>8.2 燃費の試算</h3>
+<p>走行抵抗は、速度によらない成分（転がり抵抗など）と、速度の 2 乗に比例する成分（空気抵抗）に分けられる。日本の燃費試験でも、この形で走行抵抗を測る。</p>
+<p class="formula">F_r(v) = f₀ + f₂ · v²　　（f₂ = ½ · ρ · Cd · A）</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>F_r(v)</th><td>速度 v での走行抵抗</td><td>—</td></tr>
+<tr><th>f₀</th><td>速度によらない成分（転がり抵抗など）</td><td>μ·m·g ≒ 91 N</td></tr>
+<tr><th>f₂</th><td>空気抵抗の係数</td><td>½ρ·CdA</td></tr>
+<tr><th>μ</th><td>転がり抵抗係数</td><td>0.009</td></tr>
+<tr><th>m</th><td>試験自動車重量</td><td>1,030 kg</td></tr>
+<tr><th>g</th><td>重力加速度</td><td>9.81 m/s²</td></tr>
+</tbody></table></div>
+<p>WLTCモードの速度パターン（1 秒ごとの速度、1,477 秒、15.0 km）に沿って、走行に必要な仕事を積み上げる。減速中は燃料を使わないので、正の仕事だけを足す。</p>
+<p class="formula">W⁺ = Σ_t [ F_r(v_t) + m_e · a_t ] · v_t · Δt　（かっこ内が正のときだけ足す）</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>W⁺</th><td>1 サイクルの正味の駆動仕事</td><td>5.07 MJ</td></tr>
+<tr><th>v_t, a_t</th><td>時刻 t の速度と加速度</td><td>WLTCの速度パターン</td></tr>
+<tr><th>m_e</th><td>回転部分を含む等価質量</td><td>m × 1.03</td></tr>
+<tr><th>Δt</th><td>時間刻み</td><td>1 s</td></tr>
+</tbody></table></div>
+<p>このうち空気抵抗が占める割合を φ とすると、形状改良で空気抵抗が δ だけ減ったときの仕事の減少率は φ·δ になる。さらに、アイドリングや補機の燃料は走行の仕事に連動しないため、燃料の減少率は仕事の減少率より小さくなる。その比率を k とした。</p>
+<p class="formula">燃費 FE_new = FE_old / ( 1 − k · φ · δ )</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>FE_old</th><td>現モデルのWLTC燃費（カタログ値）</td><td>22.6 km/L</td></tr>
+<tr><th>φ</th><td>駆動仕事に占める空気抵抗の割合</td><td>0.333（WLTC合計）</td></tr>
+<tr><th>δ</th><td>空気抵抗（CdA）の低減率</td><td>0.127（解析値）／0.114（摩擦込みの実車相当）</td></tr>
+<tr><th>k</th><td>仕事の減少が燃料の減少に効く割合</td><td>0.80（0.74〜0.88）</td></tr>
+</tbody></table></div>
+<p>計算例：δ = 0.114（摩擦を含む実車相当）、φ = 0.333、k = 0.80 とすると、22.6 ÷ (1 − 0.80×0.333×0.114) = 22.6 ÷ 0.9696 = 23.3 km/L。δ = 0.127 をそのまま使えば 23.4 km/L となる。前提（車重・転がり抵抗・CdA・k）を幅で振ると 23.0〜23.6 km/L に収まる。</p>
+<p class="note">φ は区間ごとに大きく違う（市街地 0.086、郊外 0.227、高速 0.483）。同じ式に区間ごとの φ を入れれば、市街地 +1% 弱、高速 +5% 前後、100 km/h 定常（φ = 0.788）で +8〜9% という値が出る。</p>
+<h3>8.3 2030年度燃費基準の達成率</h3>
+<p>基準値は車両重量の 2 次式で与えられる（重量区分の表は使わない）。</p>
+<p class="formula">FE_std = −2.47×10⁻⁶ · M² − 8.52×10⁻⁴ · M + 30.65　［km/L］</p>
+<p class="formula">達成率 η = FE / FE_std × 100　［%］</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>M</th><td>車両重量</td><td>910 kg（X 2WD 相当）</td></tr>
+<tr><th>FE_std</th><td>その重量での基準値</td><td>27.8 km/L</td></tr>
+<tr><th>FE</th><td>その車の WLTC 燃費値</td><td>現 22.6 ／ 新 約23.3</td></tr>
+<tr><th>η</th><td>達成の程度</td><td>現 81.3% ／ 新 約83.8%</td></tr>
+</tbody></table></div>
+<p>計算例：FE_std = −2.47×10⁻⁶×910² − 8.52×10⁻⁴×910 + 30.65 = −2.045 − 0.775 + 30.65 = 27.83 → 小数第1位に丸めて 27.8 km/L。現モデル 22.6 ÷ 27.8 = 0.813 → 81.3%。新モデル 23.3 ÷ 27.8 = 0.838 → 83.8%。</p>
+<p>ある達成率に届くために必要な燃費は、基準値に達成率を掛ければよい。</p>
+<p class="formula">FE_req = η_target × FE_std　（例：0.85 × 27.8 = 23.63 km/L）</p>
+<h3>8.4 価格への上乗せと回収年数</h3>
+<p>1 台あたりの原価上昇は、部品の原価と、金型・開発費を生涯生産台数で割った額の合計である。</p>
+<p class="formula">ΔC = Σ c_i + I / N　　／　　ΔP = ΔC × m</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>c_i</th><td>各部品・工程の原価上昇</td><td>合計 2,500〜7,500円</td></tr>
+<tr><th>I</th><td>金型・開発・認証の追加投資</td><td>5〜15億円</td></tr>
+<tr><th>N</th><td>生涯生産台数（年12.4万台 × 約6年）</td><td>60〜75万台</td></tr>
+<tr><th>ΔC</th><td>1台あたりの原価上昇</td><td>3,200〜10,000円</td></tr>
+<tr><th>m</th><td>価格転嫁の係数（販管費・利益込み）</td><td>1.2〜2.0</td></tr>
+<tr><th>ΔP</th><td>車両価格への上乗せ</td><td>約4,000〜20,000円</td></tr>
+</tbody></table></div>
+<p>購入者側の燃料費の節約額と、上乗せ分の回収年数は次式で求めた。</p>
+<p class="formula">S = D · p · ( 1/FE_old − 1/FE_new )　　／　　回収年数 = ΔP / S</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>D</th><td>年間走行距離</td><td>4,800 km（軽の平均）</td></tr>
+<tr><th>p</th><td>ガソリン価格</td><td>169.9 円/L</td></tr>
+<tr><th>S</th><td>年間の燃料費の節約額</td><td>1,084 円/年</td></tr>
+</tbody></table></div>
+<p>計算例：S = 4,800 × 169.9 × (1/22.6 − 1/23.3) = 4,800 × 169.9 × 0.00133 = 1,084 円/年。上乗せ 10,000 円なら 10,000 ÷ 1,084 ≒ 9.2 年で回収となる。</p>
+<h3>8.5 ばらつきと不確かさ</h3>
+<p>後流（車の後ろの渦）は時間とともに揺れるため、抗力も揺れる。平均値がどれだけ信頼できるかは、揺れの周期と平均を取った時間から見積もった。</p>
+<p class="formula">T_s = H / ( St · U )　　／　　N_eff = T_avg / T_s　　／　　SE = σ / √N_eff</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>H</th><td>車の高さ（代表寸法）</td><td>1.75 m</td></tr>
+<tr><th>St</th><td>ストローハル数（渦がはがれる頻度の目安）</td><td>0.2</td></tr>
+<tr><th>T_s</th><td>渦がはがれる周期</td><td>0.32 s</td></tr>
+<tr><th>T_avg</th><td>平均を取った時間</td><td>1.7 s</td></tr>
+<tr><th>N_eff</th><td>実質的なサンプル数</td><td>約 5.4</td></tr>
+<tr><th>σ</th><td>Cd の時間的なばらつき</td><td>0.045（現）／0.039（新）</td></tr>
+<tr><th>SE</th><td>平均値の標準誤差</td><td>0.019／0.017</td></tr>
+</tbody></table></div>
+<p>2 つのモデルの差の標準誤差は √(0.019² + 0.017²) = 0.026 となる。差は 0.066 なので、差は標準誤差の約 2.6 倍あり、「確かに下がっている」とは言える。一方で、低減率そのものは 12.8% ± 4.9 ポイントの幅がある。</p>
+<h2 id="h10">9. 天井の丸み（R30 cm）の現実性と量産化の課題</h2>
+<p>今回の新モデルでは天井の左右の角を半径 300 mm で丸めた。この値が現実的かどうかを、寸法の面から確かめる。結論を先に書くと、「窓の上端を少し下げてよい」という前提であれば、R30 cm は検証モデルとして十分現実的な範囲である。ただし、量産車として R30 cm が最適という意味ではない。この 2 つは分けて考える必要がある。</p>
+<h3>9.1 幾何：平らな部分の幅と、角が食い込む量</h3>
+<p>正面から見た断面を長方形とみなし、左右上端を 1/4 円で丸めるとする。中央に残る「完全に水平な屋根」の幅は、全幅から左右の半径を引いた値になる。</p>
+<p class="formula">平らな部分の幅 = W − 2R</p>
+<div class="tw"><table>
+<thead><tr><th>記号</th><th>意味</th><th>本件の値</th></tr></thead>
+<tbody>
+<tr><th>W</th><td>全幅</td><td>1,475 mm（現行タント）</td></tr>
+<tr><th>R</th><td>丸めの半径</td><td>250 mm または 300 mm</td></tr>
+</tbody></table></div>
+<p>R = 300 mm なら 1,475 − 300×2 = 875 mm、R = 250 mm なら 1,475 − 250×2 = 975 mm である。つまり R25 → R30 にしても、中央の平らな部分は左右合わせて 10 cm 狭くなるだけである。</p>
+<p>より重要なのは「角が実際どれだけ室内側へ食い込むか」である。元の直角の角から見て、45°方向にいちばん大きく削れる量は次式になる。</p>
+<p class="formula">d = R · ( 1 − 1/√2 ) ≒ 0.293 · R</p>
+<div class="tw"><table>
+<thead><tr><th>丸めの半径 R</th><th>最大の角削り量 d</th><th>平らな部分の幅（W = 1,475 mm）</th></tr></thead>
+<tbody>
+<tr><th>150 mm</th><td>約 4.4 cm</td><td>1,175 mm</td></tr>
+<tr><th>200 mm</th><td>約 5.9 cm</td><td>1,075 mm</td></tr>
+<tr><th>250 mm</th><td>約 7.3 cm</td><td>975 mm</td></tr>
+<tr><th class="b">300 mm（本件）</th><td class="b acc">約 8.8 cm</td><td class="b">875 mm</td></tr>
+<tr><th>350 mm</th><td>約 10.3 cm</td><td>775 mm</td></tr>
+</tbody></table></div>
+<p><strong>ここが誤解されやすい点である。</strong>R30 cm だからといって室内が 30 cm 削れるわけではない。1/4 円で丸める場合、元の角に対して最も深いところで約 8.8 cm 内側に入るだけである。寸法だけを見れば、あり得ないほど極端な形ではない。</p>
+<h3>9.2 なぜ「外に膨らませる」ことができないか</h3>
+<p>丸みを付ける方法は 2 つある。外へ膨らませるか、上側を内側へ削るかである。軽自動車では前者はほぼ使えない。</p>
+<ul>
+<li>軽自動車の規格上限は全幅 1,480 mm。現行タントは 1,475 mm なので、横方向に広げられるのは合計 5 mm（片側 2.5 mm）しかない</li>
+<li>したがって丸めは、基本的に「上側を内側へ削る」形になる</li>
+<li>現行タントの室内寸法は 室内幅 1,350 mm、室内高 1,370 mm（主要諸元表）。削るのは主に室内高の上端側と、肩まわりの空間になる</li>
+</ul>
+<h3>9.3 ガラスとルーフの役割分担（窓を全部下げる必要はない）</h3>
+<p>R 形状のすべてを金属（ルーフ外板）で作ろうとすると、曲線の始まる位置が屋根から約 300 mm 下がるため、窓をかなり小さくしなければならない。それはタントには合わない。現実的には、次のように役割を分ける。</p>
+<ul>
+<li>ルーフ外板とルーフサイドレールを丸める</li>
+<li>ドアガラスの上角も丸め、外形の曲線に追従させる</li>
+<li>必要な分だけ、ガラス上端を数 cm 下げる</li>
+</ul>
+<p>コンセプトモデルとして作るなら、ガラス上端を 30〜50 mm 下げ、ガラス上角も R 形状にし、外側のルーフ肩を R300 とするあたりから始めるのが妥当である。ただし「3〜5 cm なら法規も量産も必ず通る」という意味ではない。</p>
+<p class="note">現行タントは「極細Aピラー」で斜め前方の視界を確保することを特徴としている。窓を大きく下げたり、ピラーを太くしたりすると、その商品性を損なうことになる。</p>
+<h3>9.4 量産化でやらなければならないこと・注意点</h3>
+<p>外板だけを削れば終わりではない。実車化するには、少なくとも次の項目を一つずつ確認する必要がある。</p>
+<div class="tw"><table>
+<thead><tr><th>分野</th><th>確認・対応すること</th><th>R30 で特に効く点</th></tr></thead>
+<tbody>
+<tr><th>視界</th><td>前方・斜め前方・側方の視界、Aピラーによる死角、ミラーの視認範囲</td><td>ガラス上端を下げると斜め上方の視界が減る</td></tr>
+<tr><th>頭部空間</th><td>乗員の頭部と内装の間隔（頭上・肩上）、着座姿勢、乗降性</td><td>角を削る分、肩まわりと頭上の余裕が減る</td></tr>
+<tr><th>頭部衝撃</th><td>内装（ルーフサイドの内張り）への頭部衝撃試験</td><td>内張りとルーフ骨格の間に潰れしろが必要</td></tr>
+<tr><th>カーテンエアバッグ</th><td>ルーフサイド内の収納スペースと展開経路、展開時の内張りの割れ方</td><td>断面が小さくなるほど成立が難しくなる</td></tr>
+<tr><th>骨格・衝突安全</th><td>ルーフサイドレールの断面、超高張力鋼板の使い方、側面衝突・横転時の屋根つぶれ耐性</td><td>断面を削ると強度・剛性が落ちるため補強が要る</td></tr>
+<tr><th>ガラス</th><td>深い曲げ加工の成形性、光学的なひずみ、可視光線透過率 70% 以上の確保</td><td>上角を丸めるほど曲げが難しくなる</td></tr>
+<tr><th>水まわり・音</th><td>雨樋・モール・シールの納まり、雨だれ、風切り音</td><td>肩の曲面は風切り音の発生源になりやすい</td></tr>
+<tr><th>生産</th><td>ルーフ外板の成形性（面ひずみ・スプリングバック）、溶接・接着の打点、ガラスの組付け</td><td>大きな R は面の見栄え（映り込み）に敏感</td></tr>
+<tr><th>法規・認証</th><td>型式指定の再取得、歩行者頭部保護（フロントガラスを含む領域）、視界基準</td><td>ガラス角度の変更と合わせて再試験が必要</td></tr>
+<tr><th>重量・コスト</th><td>補強による重量増、金型の作り直し、認証費用</td><td>重量増は燃費改善を相殺しうる</td></tr>
+</tbody></table></div>
+<p><strong>特に注意すべきは、アッパーボディ（屋根まわりの骨格）が衝突安全性に関わる点である。</strong>ダイハツ自身も、キャビン骨格の強度と軽量化を安全性能の要素として説明している。外板の形だけを変えても、その下の骨格・内装・エアバッグ・ガラスまで含めて成立させなければ量産はできない。</p>
+<h3>9.5 検証モデルとしての位置づけ</h3>
+<p>今回の目的は「CFD で形状変更の効果を分かりやすく示すこと」である。その目的であれば、R25 cm より R30 cm を一度試すほうがよい。効果が大きく出るぶん、粗い格子でも差が読み取りやすいからである。実際、真横からの風で 9.0%、正面で 12.7% という差が得られた。</p>
+<p>一方、量産形状としての最適値は、上の各項目とのバランスで決まる。現実的には R150〜R250 のあたりで、ガラス上角の処理と組み合わせて成立させることになると考えられる。今回の R300 は、効果の上限を見るための上振れした条件と位置づけるのが正しい。</p>
+<h2 id="h11">10. 良い点・限界・改善案</h2>
+<h3>10.1 この検討の良い点</h3>
+<ul>
+<li>無料のツールとノートPC 1台で、形状変更の効果を数値で比較できた（1ケース約21分）</li>
+<li>現モデルと新モデルを同じ格子・同じ条件・同じ基準面積で計算しているため、差の信頼性は絶対値より高い</li>
+<li>結果はブラウザで見られる 3D ページとして公開済みで、誰でも URL だけで確認できる</li>
+</ul>
+<h3>10.2 限界（数値を使うときの注意）</h3>
+<ul>
+<li>格子が 4.5 cm と粗く、表面の摩擦抵抗を含まないため、Cd の絶対値は実車より 5 割ほど大きい。使えるのは差だけである</li>
+<li>平均を取った時間が 1.7 秒と短く、低減率の不確かさは ±5 ポイント程度ある</li>
+<li>リアスポイラー（17 cm）は格子 4 個分しかなく、形が解像できていない。スポイラー単体の効果は信頼できない</li>
+<li>燃費・価格・達成率はいずれも試算であり、実測値ではない</li>
+<li>フロントガラスを寝かせると A ピラーの根元が前に出るか室内長が縮む。室内の広さが売りの車種では商品性とのトレードオフになる</li>
+</ul>
+<h3>10.3 次にやるとよいこと</h3>
+<ul>
+<li>格子を 2 cm 程度に細かくする（メモリの大きい GPU か、車の近くだけ細かくする方法が必要）</li>
+<li>壁の近くの扱いを改善し（壁関数）、摩擦抵抗も含めた Cd を出す</li>
+<li>実験データのある標準形状（DrivAer など）で同じ手法を試し、誤差の傾向をつかむ</li>
+<li>天井の丸みを R150／R200／R250／R300 で比べ、効果と室内空間のバランスを見る</li>
+<li>空力以外の改良（転がり抵抗の低減、床下の整流、アンダーカバー）と組み合わせ、2030年度基準 85% 達成を狙う</li>
+</ul>
+<h2 id="h12">出典</h2>
+<ul>
+<li>乗用車の2030年度燃費基準に関する最終取りまとめ（令和元年6月、国土交通省）— 基準値の式、CAFE方式、25.4 km/L の位置づけ　<a href="https://www.mlit.go.jp/common/001303219.pdf" rel="noreferrer">https://www.mlit.go.jp/common/001303219.pdf</a></li>
+<li>令和8年度税制改正の大綱（抜粋、国土交通省）— エコカー減税の区分、環境性能割の廃止、軽の重量税額　<a href="https://www.mlit.go.jp/jidosha/content/001993968.pdf" rel="noreferrer">https://www.mlit.go.jp/jidosha/content/001993968.pdf</a></li>
+<li>環境性能に優れた自動車等に対する自動車重量税の減免措置について（令和8年4月改訂、国税庁）　<a href="https://www.nta.go.jp/publication/pamph/kansetsu/eco_car.pdf" rel="noreferrer">https://www.nta.go.jp/publication/pamph/kansetsu/eco_car.pdf</a></li>
+<li>ダイハツ タント 主要諸元表・環境仕様書・グレード価格（ダイハツ工業）　<a href="https://www.daihatsu.co.jp/lineup/tanto/" rel="noreferrer">https://www.daihatsu.co.jp/lineup/tanto/</a></li>
+<li>前田和宏「自動車における空力開発と取り組み動向」日本風工学会誌 36(3), 242-249, 2011 — 空気抵抗の仕事割合、圧力抵抗が9割　<a href="https://www.jstage.jst.go.jp/article/jawe/36/3/36_242/_pdf" rel="noreferrer">https://www.jstage.jst.go.jp/article/jawe/36/3/36_242/_pdf</a></li>
+<li>TRIAS 08-002-04 燃料消費率試験（WLTCモード）（自動車技術総合機構）— WLTCの速度パターンと走行抵抗係数の定義</li>
+<li>全国軽自動車協会連合会 2025年度 車種別販売台数　<a href="https://www.zenkeijikyo.or.jp/statistics/tushosoku-nendo" rel="noreferrer">https://www.zenkeijikyo.or.jp/statistics/tushosoku-nendo</a></li>
+<li>資源エネルギー庁 給油所小売価格調査（2026年9月）、燃料油価格激変緩和措置の支給単価</li>
+</ul>
+<p class="note">本レポートの空力解析は筆者が自作したソルバーによるものであり、メーカーの公表値ではない。燃費・価格・達成率はいずれも公表データと一般的な相場にもとづく試算である。第9章の量産化に関する記述は、公開されている寸法・規格と一般的な設計上の考え方にもとづく検討であり、特定のメーカーの設計内容を示すものではない。</p>
+<footer>
+  <p>この内容は Word ファイルと同じものである。<a href="tanto-aero-report.docx" download>tanto-aero-report.docx をダウンロード</a></p>
+  <p>関連ページ：<a href="https://uu6206935.github.io/tanto-cfd/">現モデルの3Dビューア</a>　／　<a href="https://uu6206935.github.io/tanto-cfd-new/">新モデルの3Dビューア</a></p>
+</footer>
+</div>
+</body>
+</html>
