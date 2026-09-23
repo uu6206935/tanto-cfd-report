@@ -4,60 +4,77 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>タント空力改良レポート</title>
-<meta name="description" content="ダイハツ タントの現モデルと新モデルを自作の格子ボルツマン法ソルバーで比較した空力改良レポート。燃費・価格・2030年度燃費基準の試算と、その計算式の導出を含む。">
+<meta name="description" content="ダイハツ タントの現モデルと新モデルを自作の格子ボルツマン法ソルバーで比較した空力改良レポート。燃費・価格・2030年度燃費基準の試算とその導出、発表用スライドの画像を含む。">
 <style>
 :root{
   --bg:#ffffff; --surface:#f7f8fa; --ink:#1c2431; --muted:#5b6472; --rule:#d6dae0;
-  --acc:#b8791f; --acc-soft:#f7f4ee; --link:#3f6fb5; --head-bg:#eef1f5;
+  --acc:#b8791f; --acc-soft:#f7f4ee; --link:#3f6fb5; --head-bg:#eef1f5; --frame:#e9ecf1;
+  color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){ --bg:#14181f; --surface:#1b212b; --ink:#e7eaef; --muted:#9aa3b2;
-    --rule:#333c4a; --acc:#d9a04a; --acc-soft:#241f16; --link:#8ab0e8; --head-bg:#222a35; }
+    --rule:#333c4a; --acc:#d9a04a; --acc-soft:#241f16; --link:#8ab0e8; --head-bg:#222a35; --frame:#1b212b;
+    color-scheme:dark; }
 }
 :root[data-theme="dark"]{ --bg:#14181f; --surface:#1b212b; --ink:#e7eaef; --muted:#9aa3b2;
-  --rule:#333c4a; --acc:#d9a04a; --acc-soft:#241f16; --link:#8ab0e8; --head-bg:#222a35; }
+  --rule:#333c4a; --acc:#d9a04a; --acc-soft:#241f16; --link:#8ab0e8; --head-bg:#222a35; --frame:#1b212b;
+  color-scheme:dark; }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:"Yu Gothic","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
   font-size:16px;line-height:1.85;-webkit-text-size-adjust:100%}
-.wrap{max-width:860px;margin:0 auto;padding:40px 16px 80px}
+.wrap{max-width:860px;margin:0 auto;padding-block:40px 80px;padding-left:16px;padding-right:16px}
 .cover{border-bottom:3px solid var(--acc);padding-bottom:20px;margin-bottom:8px}
 .eyebrow{color:var(--acc);font-weight:700;font-size:14px;letter-spacing:.08em;margin:0 0 6px}
-.title{font-size:34px;line-height:1.3;margin:0 0 6px;font-weight:800}
+.title{font-size:34px;line-height:1.3;margin:0 0 6px;font-weight:800;text-wrap:balance}
 .subtitle{font-size:19px;color:var(--muted);margin:0 0 18px}
 .meta p{margin:2px 0;font-size:14px;color:var(--ink)}
 .meta .k{color:var(--muted)}
-.actions{margin:22px 0 0}
-.btn{display:inline-block;background:var(--acc);color:#fff;text-decoration:none;padding:11px 20px;font-weight:700;font-size:15px}
+.actions{margin:22px 0 0;display:flex;flex-wrap:wrap;gap:10px}
+.btn{display:inline-block;background:var(--acc);color:#fff;text-decoration:none;padding:11px 20px;
+  font-weight:700;font-size:15px;border:0;font-family:inherit;cursor:pointer}
 .btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--rule)}
 nav.toc{background:var(--surface);border-left:4px solid var(--acc);padding:14px 18px;margin:26px 0 34px}
 nav.toc p{margin:0 0 6px;font-weight:700;font-size:14px;color:var(--muted)}
 nav.toc ul{margin:0;padding-left:0;font-size:14px;list-style:none}
 nav.toc li{margin:0 0 3px}
 nav.toc a{color:var(--link)}
-h2{font-size:24px;margin:44px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--acc);font-weight:800;scroll-margin-top:16px}
+h2{font-size:24px;margin:44px 0 14px;padding-bottom:8px;border-bottom:2px solid var(--acc);
+  font-weight:800;scroll-margin-top:16px;text-wrap:balance}
 h3{font-size:18px;margin:28px 0 8px;font-weight:700}
 p{margin:0 0 12px}
 ul{margin:0 0 14px;padding-left:1.35em}
 li{margin:0 0 5px}
 a{color:var(--link)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .note{font-size:14px;color:var(--muted);margin-bottom:16px}
 .caption{font-size:14px;color:var(--muted);text-align:center}
 .formula{background:var(--acc-soft);border-left:4px solid var(--acc);padding:12px 16px;margin:16px 0;
   text-align:center;font-weight:700;font-size:17px;overflow-x:auto}
 .tw{overflow-x:auto;margin:0 0 18px}
-table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px;font-variant-numeric:tabular-nums}
 th,td{border:1px solid var(--rule);padding:7px 10px;text-align:center;vertical-align:top;font-weight:400}
 thead th{background:var(--head-bg);font-weight:700}
 tbody th{text-align:left;font-weight:400}
 tbody th.b,td.b{font-weight:700}
 .acc{color:var(--acc);font-weight:700}
 figure{margin:20px 0 22px}
-figure img{width:100%;height:auto;display:block;background:#fff}
+figure img{width:100%;max-width:100%;height:auto;display:block;background:#fff}
 figcaption{font-size:14px;color:var(--muted);text-align:center;margin-top:6px}
 footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);font-size:14px;color:var(--muted)}
 @media (max-width:640px){ .title{font-size:26px} h2{font-size:20px} body{font-size:15px} }
 @media print{ .btn,nav.toc{display:none} body{font-size:10.5pt} .wrap{padding:0} }
+@media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} }
+/* 末尾の画像 */
+.shot{margin:0 0 26px}
+.shot-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px}
+.shot-cap{font-size:14px;color:var(--muted)}
+.shot-act{display:flex;gap:6px}
+.btn.mini{padding:5px 12px;font-size:13px}
+.shot-frame{border:1px solid var(--rule);background:var(--frame);padding:10px;display:flex;justify-content:center}
+.shot-frame img{width:100%;height:auto;display:block;background:#fff}
+.copied{background:#2f7d4f!important;color:#fff!important;border-color:#2f7d4f!important}
 </style>
 </head>
 <body>
@@ -69,7 +86,7 @@ footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);font-si
   <div class="meta"><p><span class="k">作成日：</span>2026年9月23日　<span class="k">対象：</span>ダイハツ タント（2代目相当の形状）</p>
   <p><span class="k">解析：</span>自作の格子ボルツマン法ソルバー（ノートPCのGPUで計算）</p>
   <p><span class="k">公開ページ：</span>現モデル <a href="https://uu6206935.github.io/tanto-cfd/" rel="noreferrer">https://uu6206935.github.io/tanto-cfd/</a>　／　新モデル <a href="https://uu6206935.github.io/tanto-cfd-new/" rel="noreferrer">https://uu6206935.github.io/tanto-cfd-new/</a></p></div>
-  <p class="actions"><a class="btn" href="tanto-aero-report.docx" download>Word ファイルをダウンロード（.docx）</a></p>
+  <p class="actions"><a class="btn" href="tanto-aero-report.docx" download>Word ファイルをダウンロード（.docx）</a><a class="btn ghost" href="#gallery">画像をコピーする</a></p>
 </header>
 <nav class="toc">
   <p>目次</p>
@@ -86,6 +103,7 @@ footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);font-si
     <li><a href="#h10">9. 天井の丸み（R30 cm）の現実性と量産化の課題</a></li>
     <li><a href="#h11">10. 良い点・限界・改善案</a></li>
     <li><a href="#h12">出典</a></li>
+    <li><a href="#gallery">資料の画像</a></li>
   </ul>
 </nav>
 <h2 id="h1">要旨</h2>
@@ -131,8 +149,8 @@ footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);font-si
 <tr><th>屋根後端</th><td>なし</td><td class="b">三角スポイラー</td><td>後流の巻き込みを整える</td></tr>
 </tbody></table></div>
 <p class="note">スポイラーは屋根の後端から後ろへ 17 cm 伸び、後端で 5 cm 下がる小さな三角形である（上向きではない）。体積は 6.34 → 6.21 m³、真正面から見た投影面積は 2.31 → 2.30 m² とほぼ変わらない。</p>
-<figure><img src="shape_compare.png" alt="図1　現モデル（上）と新モデル（下）の側面・正面" loading="lazy"><figcaption>図1　現モデル（上）と新モデル（下）の側面・正面</figcaption></figure>
-<figure><img src="spoiler_section.png" alt="図2　屋根後端の断面（車の中心付近、右が後ろ）。新モデルは屋根の線より下に、後ろへ下がる三角形が付く" loading="lazy"><figcaption>図2　屋根後端の断面（車の中心付近、右が後ろ）。新モデルは屋根の線より下に、後ろへ下がる三角形が付く</figcaption></figure>
+<figure><img src="shape_compare.png" alt="図1　現モデル（上）と新モデル（下）の側面・正面"><figcaption>図1　現モデル（上）と新モデル（下）の側面・正面</figcaption></figure>
+<figure><img src="spoiler_section.png" alt="図2　屋根後端の断面（車の中心付近、右が後ろ）。新モデルは屋根の線より下に、後ろへ下がる三角形が付く"><figcaption>図2　屋根後端の断面（車の中心付近、右が後ろ）。新モデルは屋根の線より下に、後ろへ下がる三角形が付く</figcaption></figure>
 <h2 id="h4">3. 解析の条件と方法</h2>
 <h3>3.1 手法</h3>
 <p><strong>格子ボルツマン法（LBM、D3Q19）</strong>を用いた。簡単に言えば、空気を細かい粒の集まりとみなし、ます目の上で 19 方向に動かしてはぶつけ合う操作を何万回もくり返す方法である。乱れた流れは <strong>LES（Smagorinsky モデル、定数 0.12）</strong> で扱う。これは、ます目より小さい渦を 1 つずつ計算せず、その分を空気の粘り気に上乗せする考え方である。</p>
@@ -150,7 +168,7 @@ footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);font-si
 <h3>3.3 力の求め方と検算</h3>
 <p>抗力は車体表面の圧力を積分して求めた（圧力抗力）。運動量交換法でも力を出して突き合わせたところ、こちらは壁の近くの格子が粗く摩擦が過大に出た（Cd 0.94 相当）ため、表示には使っていない。計算の途中では、接地部の基準圧力のかたよりと記録タイミングの偏りという 2 つの不具合を見つけて修正した。</p>
 <h2 id="h5">4. 空力解析の結果</h2>
-<figure><img src="cd_compare.png" alt="図3　風の向きごとの抗力係数（現モデル・新モデルを同じ基準面積 2.31 m² で比較）" loading="lazy"><figcaption>図3　風の向きごとの抗力係数（現モデル・新モデルを同じ基準面積 2.31 m² で比較）</figcaption></figure>
+<figure><img src="cd_compare.png" alt="図3　風の向きごとの抗力係数（現モデル・新モデルを同じ基準面積 2.31 m² で比較）"><figcaption>図3　風の向きごとの抗力係数（現モデル・新モデルを同じ基準面積 2.31 m² で比較）</figcaption></figure>
 <p>正面からの風では抗力係数が 12.7% 下がった。真横（90°）でも 9.0% 下がっており、天井の角を丸めた効果と考えられる。一方、斜め 30° ではほとんど変わらなかった。斜めからの風では車の側面が受ける力が支配的になるためである。</p>
 <div class="tw"><table>
 <thead><tr><th>風の向き</th><th>現モデル Cd</th><th>新モデル Cd</th><th>変化</th></tr></thead>
@@ -471,10 +489,178 @@ footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);font-si
 <li>資源エネルギー庁 給油所小売価格調査（2026年9月）、燃料油価格激変緩和措置の支給単価</li>
 </ul>
 <p class="note">本レポートの空力解析は筆者が自作したソルバーによるものであり、メーカーの公表値ではない。燃費・価格・達成率はいずれも公表データと一般的な相場にもとづく試算である。第9章の量産化に関する記述は、公開されている寸法・規格と一般的な設計上の考え方にもとづく検討であり、特定のメーカーの設計内容を示すものではない。</p>
+
+<h2 id="gallery">資料の画像</h2>
+<p>発表用スライドと見出し用の画像である。「画像をコピー」を押すとその画像がクリップボードに入るので、そのまま貼り付けられる。うまくいかない環境では、画像を右クリックして「画像をコピー」を選ぶか、「ダウンロード」から保存する。</p>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">見出し用の画像　ワイヤーフレームの車体と流線</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="0">画像をコピー</button>
+        <a class="btn mini ghost" href="img01_hero_wireframe.webp" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot0" src="img01_hero_wireframe.webp" alt="見出し用の画像　ワイヤーフレームの車体と流線" width="2000" height="668" style="max-width:2000px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">見出し用の画像　車体と流線</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="1">画像をコピー</button>
+        <a class="btn mini ghost" href="img02_hero_body.webp" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot1" src="img02_hero_body.webp" alt="見出し用の画像　車体と流線" width="1672" height="941" style="max-width:1672px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">スライド1　表紙</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="2">画像をコピー</button>
+        <a class="btn mini ghost" href="img03_slide1.png" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot2" src="img03_slide1.png" alt="スライド1　表紙" width="512" height="341" style="max-width:512px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">スライド2　要旨</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="3">画像をコピー</button>
+        <a class="btn mini ghost" href="img04_slide2.png" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot3" src="img04_slide2.png" alt="スライド2　要旨" width="512" height="341" style="max-width:512px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">スライド3　新モデルの形状</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="4">画像をコピー</button>
+        <a class="btn mini ghost" href="img05_slide3.png" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot4" src="img05_slide3.png" alt="スライド3　新モデルの形状" width="512" height="341" style="max-width:512px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">スライド4　解析の条件と方法</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="5">画像をコピー</button>
+        <a class="btn mini ghost" href="img06_slide4.png" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot5" src="img06_slide4.png" alt="スライド4　解析の条件と方法" width="512" height="341" style="max-width:512px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">スライド5　空力解析の結果</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="6">画像をコピー</button>
+        <a class="btn mini ghost" href="img07_slide5.png" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot6" src="img07_slide5.png" alt="スライド5　空力解析の結果" width="512" height="341" style="max-width:512px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">スライド6　100 km/h での空気抵抗</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="7">画像をコピー</button>
+        <a class="btn mini ghost" href="img08_slide6.png" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot7" src="img08_slide6.png" alt="スライド6　100 km/h での空気抵抗" width="512" height="341" style="max-width:512px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">スライド7　燃費の見込み</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="8">画像をコピー</button>
+        <a class="btn mini ghost" href="img09_slide7.png" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot8" src="img09_slide7.png" alt="スライド7　燃費の見込み" width="512" height="342" style="max-width:512px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">スライド8　燃費試算の前提</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="9">画像をコピー</button>
+        <a class="btn mini ghost" href="img10_slide8.png" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot9" src="img10_slide8.png" alt="スライド8　燃費試算の前提" width="512" height="342" style="max-width:512px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">スライド9　今後の展望</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="10">画像をコピー</button>
+        <a class="btn mini ghost" href="img11_slide9.png" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot10" src="img11_slide9.png" alt="スライド9　今後の展望" width="512" height="342" style="max-width:512px"></div>
+  </figure>
+  <figure class="shot">
+    <div class="shot-bar">
+      <span class="shot-cap">スライド全9枚の一覧</span>
+      <span class="shot-act">
+        <button class="btn mini" type="button" data-copy="11">画像をコピー</button>
+        <a class="btn mini ghost" href="img12_slides_all.webp" download>ダウンロード</a>
+      </span>
+    </div>
+    <div class="shot-frame"><img id="shot11" src="img12_slides_all.webp" alt="スライド全9枚の一覧" width="1536" height="1024" style="max-width:1536px"></div>
+  </figure>
+
 <footer>
   <p>この内容は Word ファイルと同じものである。<a href="tanto-aero-report.docx" download>tanto-aero-report.docx をダウンロード</a></p>
   <p>関連ページ：<a href="https://uu6206935.github.io/tanto-cfd/">現モデルの3Dビューア</a>　／　<a href="https://uu6206935.github.io/tanto-cfd-new/">新モデルの3Dビューア</a></p>
 </footer>
 </div>
+<script>
+// 画像をクリップボードに入れる。まず Clipboard API、だめなら選択してコピーを試す。
+function copyBySelection(img) {
+  const holder = document.createElement("div");
+  holder.contentEditable = "true";
+  holder.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+  const clone = img.cloneNode(true);
+  clone.removeAttribute("id"); clone.removeAttribute("style");
+  holder.appendChild(clone);
+  document.body.appendChild(holder);
+  const range = document.createRange();
+  range.selectNode(clone);
+  const sel = window.getSelection();
+  sel.removeAllRanges(); sel.addRange(range);
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  sel.removeAllRanges();
+  holder.remove();
+  return ok;
+}
+document.querySelectorAll("[data-copy]").forEach(function (btn) {
+  const label = btn.textContent;
+  btn.addEventListener("click", async function () {
+    const img = document.getElementById("shot" + btn.dataset.copy);
+    const done = function (msg, ok) {
+      btn.textContent = msg;
+      if (ok) btn.classList.add("copied");
+      setTimeout(function () { btn.textContent = label; btn.classList.remove("copied"); }, 2200);
+    };
+    try {
+      if (!img.complete) await img.decode();
+      const cv = document.createElement("canvas");
+      cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+      cv.getContext("2d").drawImage(img, 0, 0);
+      const blob = await new Promise(function (r) { cv.toBlob(r, "image/png"); });
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      done("コピーした", true);
+      return;
+    } catch (e) { /* 次の方法を試す */ }
+    const ok = copyBySelection(img);
+    done(ok ? "コピーした" : "右クリックでコピー", ok);
+  });
+});
+</script>
 </body>
 </html>
